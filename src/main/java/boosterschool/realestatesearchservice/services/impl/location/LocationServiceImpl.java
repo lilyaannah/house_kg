@@ -1,10 +1,7 @@
 package boosterschool.realestatesearchservice.services.impl.location;
 
-import boosterschool.realestatesearchservice.dto.LocationDto;
 import boosterschool.realestatesearchservice.models.location.Location;
-import boosterschool.realestatesearchservice.models.location.LocationType;
 import boosterschool.realestatesearchservice.repositories.location.LocationRepo;
-import boosterschool.realestatesearchservice.services.MainHouseKgService;
 import boosterschool.realestatesearchservice.services.location.LocationService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

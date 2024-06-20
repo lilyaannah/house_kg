@@ -87,8 +87,8 @@ VALUES (7, 'Бишкек', true, 4, 2),
        (17, 'АУЦА', true, 7, 3);
 
 INSERT INTO currencies (id, currency_type, active)
-VALUES (1, 'Доллар', true),
-       (2, 'Сом', true);
+VALUES (1, 'USD', true),
+       (2, 'KGZ', true);
 
 INSERT INTO price_types(id, price_type, active)
 VALUES (1, 'За всё', true),

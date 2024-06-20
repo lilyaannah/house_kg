@@ -1,4 +1,4 @@
-package boosterschool.realestatesearchservice.dto.response;
+package boosterschool.realestatesearchservice.dto.request;
 
 import boosterschool.realestatesearchservice.enums.CheckBox;
 import boosterschool.realestatesearchservice.models.location.Location;

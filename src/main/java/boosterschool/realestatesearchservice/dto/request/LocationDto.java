@@ -1,4 +1,4 @@
-package boosterschool.realestatesearchservice.dto;
+package boosterschool.realestatesearchservice.dto.request;
 
 import boosterschool.realestatesearchservice.models.location.Location;
 import lombok.AllArgsConstructor;

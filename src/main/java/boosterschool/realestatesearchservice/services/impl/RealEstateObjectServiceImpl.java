@@ -1,8 +1,8 @@
 package boosterschool.realestatesearchservice.services.impl;
 
-import boosterschool.realestatesearchservice.dto.HouseKgObjectDto;
-import boosterschool.realestatesearchservice.dto.response.RealEstateGetAdDtoResponse;
-import boosterschool.realestatesearchservice.mapper.RealEstateObjectMapper;
+import boosterschool.realestatesearchservice.dto.request.HouseKgObjectDto;
+import boosterschool.realestatesearchservice.dto.request.RealEstateGetAdDtoResponse;
+import boosterschool.realestatesearchservice.exceptions.ListNullExp;
 import boosterschool.realestatesearchservice.models.location.Location;
 import boosterschool.realestatesearchservice.models.money.*;
 import boosterschool.realestatesearchservice.models.object.*;
@@ -11,19 +11,20 @@ import boosterschool.realestatesearchservice.services.impl.money.CurrentExchange
 import boosterschool.realestatesearchservice.services.location.LocationService;
 import boosterschool.realestatesearchservice.services.money.*;
 import boosterschool.realestatesearchservice.services.object.*;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.criteria.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static boosterschool.realestatesearchservice.enums.ExceptionCode.LIST_IS_NULL;
 
 @Service
 @Builder
@@ -48,7 +49,8 @@ public class RealEstateObjectServiceImpl implements RealEstateObjectService {
     private final CurrentExchangeServiceImpl currentExchangeRateService;
 
     @Override
-    public List<RealEstateGetAdDtoResponse> getObject(String dealType,
+    public List<RealEstateObject> getObject(int page, int size,
+            String dealType,
                                                       String propertyType,
                                                       Integer roomCount,
                                                       String housingComplex,
@@ -70,90 +72,54 @@ public class RealEstateObjectServiceImpl implements RealEstateObjectService {
                                                       String mortgage,
                                                       String exchangeOption
     ) {
+        PageRequest pageRequest= PageRequest.of(page-1, size);
         Specification<RealEstateObject> parameters = (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = buildPredicates(dealType,
-                    propertyType, roomCount,
-                    housingComplex, series,
-                    buildingType, yearBuilt,
-                    heating, condition,
-                    region, city,
-                    district, streetName,
-                    houseNumber, priceMin,
-                    priceMax, currency,
-                    priceType, installmentPlan,
+            List<Predicate> predicates = buildPredicates(
+                    dealType, propertyType, roomCount,
+                    housingComplex, series, buildingType, yearBuilt,
+                    heating, condition, region, city,
+                    district, streetName, houseNumber, priceMin,
+                    priceMax, currency, priceType, installmentPlan,
                     mortgage, exchangeOption,
                     root, criteriaBuilder);
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
+        Page<RealEstateObject> pages = realEstateObjectRepo.findAll(parameters, pageRequest);
 
-        //realEstateObjectRepo.findAll(parameters);
+        return pages.getContent();
 
-       // realEstateObjectList.forEach(obj -> System.out.println(obj.toString()));
+    }
 
-        return realEstateObjectRepo.findAll(parameters).stream()
+    public List<RealEstateGetAdDtoResponse> toDto(List<RealEstateObject> realEstateObjectList){
+        return realEstateObjectList.stream()
                 .filter(RealEstateObject::isActive)
                 .map(
-                realEstateObject -> {
-                    String regionName = getLocationNameByType(realEstateObject.getLocation(), "region");
-                    String cityName = getLocationNameByType(realEstateObject.getLocation(), "city");
-                    String districtName = getLocationNameByType(realEstateObject.getLocation(), "district");
-                    return new RealEstateGetAdDtoResponse(
-                            realEstateObject.getDealType().getTypeName(),
-                            realEstateObject.getPropertyType().getTypeName(),
-                            realEstateObject.getRoomCount() != null ? realEstateObject.getRoomCount().getRoomCount() : 0,
-                            realEstateObject.getHousingComplex() != null ?
-                                    realEstateObject.getHousingComplex().getHousingComplexName() : "",
-                            realEstateObject.getSeries() != null ? realEstateObject.getSeries().getSeries() : null,
-                            realEstateObject.getBuildingType() != null ? realEstateObject.getBuildingType().getBuildingType() : "",
-                            realEstateObject.getYearBuilt() != null ? realEstateObject.getYearBuilt() : null,
-                            realEstateObject.getHeating() != null ? realEstateObject.getHeating().getHeatingType() : "",
-                            realEstateObject.getCondition() != null ? realEstateObject.getCondition().getConditionType() : "",
-                            regionName,
-                            cityName,
-                            districtName,
-                            realEstateObject.getStreetName(),
-                            realEstateObject.getHouseNumber() != null ? realEstateObject.getHouseNumber() : "",
-                            realEstateObject.getPrice().getTotalPrice(),
-                            realEstateObject.getPrice().getCurrency().getCurrency(),
-                            realEstateObject.getPrice().getPriceType().getPriceType(),
-                            realEstateObject.getInstallmentPlan().getMark(),
-                            realEstateObject.getMortgage().getMark(),
-                            realEstateObject.getExchangeOption().getOption()
-                    );
-                }).collect(Collectors.toList());
-
+                        realEstateObject -> {
+                            return new RealEstateGetAdDtoResponse(
+                                    realEstateObject.getDealType().getTypeName(),
+                                    realEstateObject.getPropertyType().getTypeName(),
+                                    realEstateObject.getRoomCount() != null ? realEstateObject.getRoomCount().getRoomCount() : 0,
+                                    realEstateObject.getHousingComplex() != null ?
+                                            realEstateObject.getHousingComplex().getHousingComplexName() : "",
+                                    realEstateObject.getSeries() != null ? realEstateObject.getSeries().getSeries() : null,
+                                    realEstateObject.getBuildingType() != null ? realEstateObject.getBuildingType().getBuildingType() : "",
+                                    realEstateObject.getYearBuilt() != null ? realEstateObject.getYearBuilt() : null,
+                                    realEstateObject.getHeating() != null ? realEstateObject.getHeating().getHeatingType() : "",
+                                    realEstateObject.getCondition() != null ? realEstateObject.getCondition().getConditionType() : "",
+                                    realEstateObjectRepo.getRegion(realEstateObject.getLocation().getLocationName()),
+                                    realEstateObjectRepo.getCity(realEstateObject.getLocation().getLocationName()),
+                                    realEstateObject.getLocation().getLocationName(),
+                                    realEstateObject.getStreetName(),
+                                    realEstateObject.getHouseNumber() != null ? realEstateObject.getHouseNumber() : "",
+                                    realEstateObject.getPrice().getTotalPrice(),
+                                    realEstateObject.getPrice().getCurrency().getCurrency(),
+                                    realEstateObject.getPrice().getPriceType().getPriceType(),
+                                    realEstateObject.getInstallmentPlan().getMark(),
+                                    realEstateObject.getMortgage().getMark(),
+                                    realEstateObject.getExchangeOption().getOption()
+                            );
+                        }).collect(Collectors.toList());
     }
-
-    // Метод для получения locationName по типу location
-    private String getLocationNameByType(Location location, String type) {
-        while (location != null) {
-            if (location.getLocationType().getLocationType().equalsIgnoreCase(type)) {
-                return location.getLocationName();
-            }
-            location = location.getLocation();
-        }
-        return "";
-    }
-
-//    private String getRegion(Location location) {
-//        while (location.getLocation().getLocationName() != null) {
-//            location = location.getLocation();
-//        }
-//        return location.getLocationName();
-//    }
-//
-//    private String getCity(Location location) {
-//        Location parent = location.getLocation();
-//        while (parent != null && parent.getLocationName()!= null) {
-//            location = parent;
-//            parent = location.getLocation();
-//        }
-//        return location.getLocationName();
-//    }
-//
-//    private String getDistrict(Location location) {
-//        return location.getLocationName();
-//    }
 
     private List<Predicate> buildPredicates(String dealType,
                                             String propertyType,
@@ -215,55 +181,22 @@ public class RealEstateObjectServiceImpl implements RealEstateObjectService {
             Join<RealEstateObject, Condition> join = root.join("condition");
             predicates.add(criteriaBuilder.equal(join.get("conditionType"), condition));
         }
-        if (region != null) {
-            if (!"Любой регион".equalsIgnoreCase(region)) {
-                Join<RealEstateObject, Location> join = root.join("location");
 
-                // Self-join to find parent locations
-                Join<Location, Location> parentJoin = join.join("location", JoinType.LEFT);
-
-                // Check for the specified region or its parent location
-                Predicate regionPredicate = criteriaBuilder.or(
-                        criteriaBuilder.equal(join.get("locationName"), region),
-                        criteriaBuilder.equal(parentJoin.get("locationName"), region)
-                );
-
-                predicates.add(regionPredicate);
-            }
+        if (region != null ) {
+            Join<RealEstateObject, Location> join1 = root.join("location");
+            Join<Location, Location> join2 = join1.join("location");
+            Join<Location, Location> join3 = join2.join("location");
+            predicates.add(criteriaBuilder.equal(criteriaBuilder.upper(join3.get("locationName")), region.toUpperCase()));
         }
 
         if (city != null) {
-            if (!"Любой город".equalsIgnoreCase(city)) {
-                Join<RealEstateObject, Location> join = root.join("location");
-
-                // Self-join to find parent locations
-                Join<Location, Location> parentJoin = join.join("location", JoinType.LEFT);
-
-                // Check for the specified city or its parent location
-                Predicate cityPredicate = criteriaBuilder.or(
-                        criteriaBuilder.equal(join.get("locationName"), city),
-                        criteriaBuilder.equal(parentJoin.get("locationName"), city)
-                );
-
-                predicates.add(cityPredicate);
-            }
+            Join<RealEstateObject, Location> join1 = root.join("location");
+            Join<Location, Location> join2 = join1.join("location");
+            predicates.add(criteriaBuilder.equal(criteriaBuilder.upper(join2.get("locationName")), city.toUpperCase()));
         }
-
         if (district != null) {
-            if (!"Любой район".equalsIgnoreCase(district)) {
-                Join<RealEstateObject, Location> join = root.join("location");
-
-                // Self-join to find parent locations
-                Join<Location, Location> parentJoin = join.join("location", JoinType.LEFT);
-
-                // Check for the specified district or its parent location
-                Predicate districtPredicate = criteriaBuilder.or(
-                        criteriaBuilder.equal(join.get("locationName"), district),
-                        criteriaBuilder.equal(parentJoin.get("locationName"), district)
-                );
-
-                predicates.add(districtPredicate);
-            }
+            Join<RealEstateObject, Location> join1 = root.join("location");
+            predicates.add(criteriaBuilder.equal(criteriaBuilder.upper(join1.get("locationName")), district.toUpperCase()));
         }
 
         if (streetName != null) {
@@ -272,85 +205,32 @@ public class RealEstateObjectServiceImpl implements RealEstateObjectService {
         if (houseNumber != null) {
             predicates.add(criteriaBuilder.equal(root.get("houseNumber"), houseNumber));
         }
-//        if (currency != null) {
-//            Join<RealEstateObject, Price> joinPrice = root.join("price"); // Соединяем с таблицей Price
-//            Join<Price, Currency> join = joinPrice.join("currency");
-//            predicates.add(criteriaBuilder.like(join.get("currency"), "%" + currency + "%"));
-//
-//
-//
-//            if (priceMin != null) {
-//                Join<RealEstateObject, Price> joinMin = root.join("price");
-//                predicates.add(criteriaBuilder.greaterThanOrEqualTo(joinMin.get("totalPrice"), priceMin));
-//            }
-//            if (priceMax != null) {
-//                Join<RealEstateObject, Price> joinMax = root.join("price");
-//                predicates.add(criteriaBuilder.lessThanOrEqualTo(joinMax.get("totalPrice"), priceMax));
-//            }
-//        }
-
-//        if (currency != null) {
-////            Join<RealEstateObject, Price> joinPrice = root.join("price"); // Соединяем с таблицей Price
-////            Join<Price, Currency> join = joinPrice.join("currency");
-////            predicates.add(criteriaBuilder.like(join.get("currency"), "%" + currency + "%"));
-//
-//            // Получаем текущий курс обмена
-//            CurrentExchangeRate currentExchangeRate = currentExchangeRateService.getCurrentExchangeRate();
-//            Expression<Double> convertedPriceExpression = null;
-//
-//            if ("Доллар".equals(currency)) {
-//                // Если введена валюта USD, оставляем цены без изменений
-//                convertedPriceExpression = root.get("price").get("totalPrice");
-//            } else if (currentExchangeRate != null) {
-//                // Конвертируем цены в доллары или сомы в зависимости от курса
-//                if ("Сом".equals(currency)) {
-//                    // Конвертируем сомы в доллары
-//                    Expression<Double> exchangeRate = criteriaBuilder.literal(1.0 / currentExchangeRate.getExchangeRate());
-//                    convertedPriceExpression = criteriaBuilder.prod(root.get("price").get("totalPrice"), exchangeRate);
-//                }
-//            }
-//
-//            if (convertedPriceExpression != null) {
-//                // Добавляем условия для фильтрации по сконвертированным ценам
-//                if (priceMin != null) {
-//                    predicates.add(criteriaBuilder.greaterThanOrEqualTo(convertedPriceExpression, priceMin));
-//                }
-//                if (priceMax != null) {
-//                    predicates.add(criteriaBuilder.lessThanOrEqualTo(convertedPriceExpression, priceMax));
-//                }
-//            }
-//        }
 
         if (currency != null) {
-            // Получаем текущий курс обмена
             CurrentExchangeRate currentExchangeRate = currentExchangeRateService.getCurrentExchangeRate();
             Expression<Double> convertedPriceExpression = null;
 
-            if ("Доллар".equals(currency)) {
-                // Если введена валюта USD, оставляем цены без изменений
+            if ("USD".equals(currency)) {
                 convertedPriceExpression = root.get("price").get("totalPrice");
-            } else if ("Сом".equals(currency) && currentExchangeRate != null) {
-                // Конвертируем сомы в доллары
+            } else if ("KGZ".equals(currency) && currentExchangeRate != null) {
                 Expression<Double> exchangeRate = criteriaBuilder.literal(currentExchangeRate.getExchangeRate());
                 convertedPriceExpression = criteriaBuilder.prod(root.get("price").get("totalPrice"), exchangeRate);
             }
 
             if (convertedPriceExpression != null) {
-                // Добавляем условия для фильтрации по сконвертированным ценам
-                if ("Сом".equals(currency) && priceMin != null) {
-                    // Если валюта Сом и задана минимальная цена, применяем фильтр
+                if (priceMin != null) {
                     predicates.add(criteriaBuilder.greaterThanOrEqualTo(convertedPriceExpression, priceMin));
-                } else if ("Сом".equals(currency) && priceMax != null) {
-                    // Если валюта Сом и задана максимальная цена, применяем фильтр
+                }
+                if (priceMax != null) {
                     predicates.add(criteriaBuilder.lessThanOrEqualTo(convertedPriceExpression, priceMax));
                 }
             }
         }
 
         if (priceType != null) {
-            Join<RealEstateObject, Price> joinPrice = root.join("price"); // Соединяем с таблицей Price
-            Join<Price, PriceType> join = joinPrice.join("priceType"); // Соединяем с таблицей PriceType внутри Price
-            predicates.add(criteriaBuilder.like(join.get("priceType"), "%" + priceType + "%")); // Сравниваем атрибут typeName в PriceType
+            Join<RealEstateObject, Price> joinPrice = root.join("price");
+            Join<Price, PriceType> join = joinPrice.join("priceType");
+            predicates.add(criteriaBuilder.like(join.get("priceType"), "%" + priceType + "%"));
         }
         if (installmentPlan != null) {
             Join<RealEstateObject, InstallmentPlan> join = root.join("installmentPlan");
@@ -364,15 +244,14 @@ public class RealEstateObjectServiceImpl implements RealEstateObjectService {
             Join<RealEstateObject, ExchangeOption> join = root.join("exchangeOption");
             predicates.add(criteriaBuilder.equal(join.get("option"), exchangeOption));
         }
-
         return predicates;
     }
 
     @Override
     public void postAd(HouseKgObjectDto houseKgObjectDto) {
         RealEstateObject realEstateObject = new RealEstateObject();
-        DealType dealType = dealTypeService.getDealTypeById(houseKgObjectDto.dealTypeId());
-        PropertyType propertyType = propertyTypeService.getPropertyTypeById(houseKgObjectDto.propertyTypeId());
+        DealType dealType = dealTypeService.getDealTypeById(houseKgObjectDto.dealType());
+        PropertyType propertyType = propertyTypeService.getPropertyTypeById(houseKgObjectDto.propertyType());
 
         if (houseKgObjectDto.roomCount() != null) {
             RoomCount roomCount = roomCountService.getRoomCountById(houseKgObjectDto.roomCount());
